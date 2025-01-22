@@ -1,13 +1,37 @@
 import React, { useState } from "react";
-import "./App.css";
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  Navigate,
+} from "react-router-dom";
+import { useNavigate } from "react-router-dom";
+import { AuthProvider, useAuth } from "./context/AuthContext";
+import { FaShoppingCart, FaTimes } from "react-icons/fa";
+import Login from "./components/auth/Login";
+import Register from "./components/auth/Register";
 import ProductList from "./components/ProductList";
 import Cart from "./components/Cart";
 import productData from "./products.json";
+import "./App.css";
 
-function App() {
+const PrivateRoute = ({ children }) => {
+  const { user } = useAuth();
+  return user ? children : <Navigate to="/login" />;
+};
+
+// Main content component that contains products and cart
+const MainContent = () => {
   const [items, setItems] = useState([]);
+  const [isCartOpen, setIsCartOpen] = useState(false);
   const list = productData.products;
-  console.log(list);
+  const { logout } = useAuth();
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    logout();
+    navigate("/login");
+  };
 
   const add = (item) => {
     setItems((prev) => {
@@ -54,13 +78,80 @@ function App() {
     }
   };
 
+  const getTotalItems = () => {
+    return items.reduce((total, item) => total + item.qty, 0);
+  };
+
   return (
-    <div className="App">
-      <main className="App-main">
+    <div className="App-container">
+      <div className="header-buttons">
+        <button
+          className="cart-button"
+          onClick={() => setIsCartOpen(true)}
+          aria-label="Open Cart"
+        >
+          <FaShoppingCart />
+          {items.length > 0 && (
+            <span className="cart-count">{getTotalItems()}</span>
+          )}
+        </button>
+        <button onClick={handleLogout} className="logout-button">
+          Logout
+        </button>
+      </div>
+
+      <main className={`App-main ${isCartOpen ? "blur" : ""}`}>
         <ProductList list={list} add={add} />
-        <Cart items={items} update={update} remove={remove} />
       </main>
+
+      {isCartOpen && (
+        <>
+          <div
+            className="cart-backdrop"
+            onClick={() => setIsCartOpen(false)}
+          ></div>
+          <div className="cart-overlay">
+            <div className="cart-sidebar">
+              <div className="cart-header">
+                <h2>Shopping Cart</h2>
+                <button
+                  className="close-cart"
+                  style={{ right: "50px" }}
+                  onClick={() => setIsCartOpen(false)}
+                  aria-label="Close Cart"
+                >
+                  <FaTimes />
+                </button>
+              </div>
+              <Cart items={items} update={update} remove={remove} />
+            </div>
+          </div>
+        </>
+      )}
     </div>
+  );
+};
+
+function App() {
+  return (
+    <AuthProvider>
+      <Router>
+        <div className="App">
+          <Routes>
+            <Route path="/login" element={<Login />} />
+            <Route path="/register" element={<Register />} />
+            <Route
+              path="/"
+              element={
+                <PrivateRoute>
+                  <MainContent />
+                </PrivateRoute>
+              }
+            />
+          </Routes>
+        </div>
+      </Router>
+    </AuthProvider>
   );
 }
 
